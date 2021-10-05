@@ -12,8 +12,8 @@ public enum EXIT_STATUS : int {
 
 public class Program {
 	public static int VERSION_MAJOR = 2021;
-	public static int VERSION_MINOR = 277;
-	public static int VERSION_REVISION = 7401019;
+	public static int VERSION_MINOR = 278;
+	public static int VERSION_REVISION = 1774023;
 
 	private static List<decimal> TheStack = new List<decimal>();
 	private static Queue<string> FileQ = new Queue<string>();
@@ -55,9 +55,19 @@ public class Program {
 		Console.WriteLine( $"   {line}" );
 	}
 
+	private static void Read_FILE( string path ) {
+		Console.WriteLine( " CRITICAL: UNIMPLIMENTED: Read_FILE" );
+		Console.WriteLine( "    {0} : {1}", path, File.Exists( path ) ? "OK" : "Not Found" );
+	}
+
 	private static void Read_STDIN() {
-		Console.WriteLine( " FATAL: UNIMPLIMENTED: Read_STDIN");
-		System.Environment.Exit( (int)EXIT_STATUS.SUCCESS );
+		const string prompt = ": ";
+		string readLine;
+		Console.Write( prompt );
+		while( (readLine = Console.ReadLine()) != null ) {
+			Eval( readLine );
+			Console.Write( prompt );
+		}
 	}
 
   public static int Main(string[] args) {
@@ -115,7 +125,7 @@ public class Program {
 
 		// Print Files
 		while( FileQ.Count > 0 ) {
-				Console.WriteLine( FileQ.Dequeue() );
+				Read_FILE( FileQ.Dequeue() );
 		}
 
 		return (int)EXIT_STATUS.SUCCESS;
@@ -125,4 +135,6 @@ public class Program {
 /* CHANGE LOG:
  *   2021.10.04 1700->2000 (3hr):
  *     Wrote argument processor (main), Help, and Version.
+ *   2021.10.05 0358->0415 (17min):
+ *     Implimnented Read_STDIN
  */
