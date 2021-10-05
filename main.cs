@@ -56,8 +56,14 @@ public class Program {
 	}
 
 	private static void Read_FILE( string path ) {
-		Console.WriteLine( " CRITICAL: UNIMPLIMENTED: Read_FILE" );
-		Console.WriteLine( "    {0} : {1}", path, File.Exists( path ) ? "OK" : "Not Found" );
+		if( ! File.Exists( path ) ) {
+			Console.WriteLine( "ERROR: no such file: {0}", path);
+			return;
+		}
+
+		foreach( string line in File.ReadAllLines( path ) ) {
+			Eval( line );
+		}
 	}
 
 	private static void Read_STDIN() {
@@ -123,7 +129,7 @@ public class Program {
 				Read_STDIN();
 		}
 
-		// Print Files
+		// Process files
 		while( FileQ.Count > 0 ) {
 				Read_FILE( FileQ.Dequeue() );
 		}
@@ -137,4 +143,6 @@ public class Program {
  *     Wrote argument processor (main), Help, and Version.
  *   2021.10.05 0358->0415 (17min):
  *     Implimnented Read_STDIN
+ *   2021.10.05 0730->0740, 1100->1130 (40min):
+ *     Implimented Read_FILE
  */
