@@ -59,6 +59,49 @@ class Program {
 		System.Environment.Exit( (int)EXIT_STATUS.SUCCESS );
 	}
 
+	// SECTION: Operations
+	// Wrapper for pushing objects the TheStack
+	private static void do_push( StackObj so ) {
+		TheStack.Insert( 0, so );
+	}
+
+	// Wrapper for getting objects from TheStack
+	private static StackObj do_pop() {
+		StackObj so = TheStack[0];
+		TheStack.RemoveAt( 0 );
+		return so;
+	}
+
+	// Wrapper for looking at objects on TheStack
+	private static StackObj do_peek() {
+		return TheStack[0];
+	}
+
+	// Wrapper for pushing strings to TheStack
+	private static void do_push_string( string s ) {
+		StackObj so = new StackObj();
+		so.str = s;
+		so.isString = true;
+
+		do_push( so );
+	}
+
+	// Wrapper for pushing nubers to TheStack
+	private static void do_push_number( decimal d ) {
+		StackObj so = new StackObj();
+		so.num = d;
+		so.isString = false;
+
+		do_push( so );
+	}
+
+	// Wrapper for discarding objects on TheStack
+	private static void do_discard() {
+		do_pop();
+	}
+
+
+	// SECTION: Eval
 	private static string Eval_buffer = String.Empty;
 
 	private static bool Eval_buffer_hasString() {
@@ -112,7 +155,7 @@ class Program {
 				Eval_buffer = String.Empty;
 			}
 
-			// SECTION: Operators
+			// SUBSECTION: Operators
 			else switch( line[il] ) {
 				// buffer should be ""
 				case '[': // Start String Op
@@ -176,6 +219,7 @@ class Program {
 		}
 	}
 
+	// SECTION: Readers
 	private static void Read_FILE( string path ) {
 		if( ! File.Exists( path ) ) {
 			Console.WriteLine( "ERROR: no such file: {0}", path);
@@ -197,6 +241,7 @@ class Program {
 		}
 	}
 
+	// SECTION: Main
   public static int Main(string[] args) {
     // Process Arguments
 		for( int ix = 0; ix < args.Length; ix++ ) {
@@ -270,4 +315,11 @@ class Program {
  *     NOTE: Eval is a hand-written parser, a finite state automation, so 
  *       Coding these sections will take longer than the rest of this business
  *       logic.
+ *   2021.10.06 0810->0830 (20min):
+ *     Impimented:
+ *        do_push
+ *        do_pop
+ *        do_push_string
+ *        do_push_number
+ *        do_discard
  */
