@@ -1,14 +1,7 @@
 /* A trivial dc-clone in C# */
 using System;
 using System.IO; //< Path interface
-using System.Collections.Generic; //< List and Queue containers
-
-// C uses a macro to help keep common application exit invocations clean
-//   C# should do the same...
-enum EXIT_STATUS : int {
-	SUCCESS = 0,
-	FAILURE,
-}
+using System.Collections.Generic; //< List and Queue container
 
 public struct StackObj {
 	// vv C# is stupid: structs are are naturaly public by default, a virtue of their nature, but I have to explicitly state it here anyway.
@@ -27,6 +20,11 @@ class Program {
 	private static Queue<string> FileQ = new Queue<string>();
 	private static int Precision = 0;
 
+	// C uses a macro to help keep common application exit invocations clean
+	//   C# should do the same...
+	public const int EXIT_SUCCESS = 0;
+	public const int EXIT_FAILURE = 1;
+
 	private static void Help() {
 		Console.WriteLine( "Usage: {0} [OPTION] [file ...]", 
 			Path.GetFileName( 
@@ -38,7 +36,7 @@ class Program {
 		Console.WriteLine( "  -h, --help              display this help and exit" );
 		Console.WriteLine( "  -V, --version           output version information and exit" );
 
-		System.Environment.Exit( (int)EXIT_STATUS.SUCCESS );
+		System.Environment.Exit( EXIT_SUCCESS );
 	}
 
 	private static void Version() {
@@ -56,7 +54,12 @@ class Program {
 		Console.WriteLine( "  NOT LICENSED FOR PERSONAL OR COMMERCIAL USE!" );
 		Console.WriteLine( "  Please use GNU/dc instead for anything unrelated to evaluating the author's coding skills.");
 
-		System.Environment.Exit( (int)EXIT_STATUS.SUCCESS );
+		System.Environment.Exit( EXIT_SUCCESS );
+	}
+
+	// Interface for discering the type of object on the top of TheStack
+	private static bool TheStack_hasString( int indx = 0 ) {
+		return TheStack[indx].isString;
 	}
 
 	// SECTION: Operations
@@ -100,6 +103,47 @@ class Program {
 		do_pop();
 	}
 
+	// Wrapper for popping numbers off TheStack
+	private static decimal do_pop_number() {
+		// Type Checking
+		if( TheStack_hasString() ) {
+			Console.WriteLine( " FATAL: Expected number, got string {0}", TheStack[0].str );
+			System.Environment.Exit( EXIT_FAILURE );
+		}
+		
+		return do_pop().num;
+	}
+
+	// Wrapper for popping strings off TheStack
+	private static string do_pop_string() {
+		// Type Checking
+		if( !TheStack_hasString() ) {
+			Console.WriteLine( " FATAL: Expected string, got number ({0})", TheStack[0].num );
+			System.Environment.Exit( EXIT_FAILURE );
+		}
+		
+		return do_pop().str;
+	}
+
+	private static void do_add() {
+		do_push_number( do_pop_number() + do_pop_number() );
+	}
+
+	private static void do_subtract() {
+		do_push_number( do_pop_number() - do_pop_number() );
+	}
+
+	private static void do_multiply() {
+		do_push_number( do_pop_number() * do_pop_number() );
+	}
+
+	private static void do_divide() {
+		do_push_number( do_pop_number() * do_pop_number() );
+	}
+
+	private static void do_modulo() {
+		do_push_number( do_pop_number() % do_pop_number() );
+	}
 
 	// SECTION: Eval
 	private static string Eval_buffer = String.Empty;
@@ -257,7 +301,7 @@ class Program {
 					FileQ.Enqueue( args[ix].Length > 2 ? args[ix].Substring( 2 ) : args[++ix] );
 				} catch( IndexOutOfRangeException ) {
 					Console.WriteLine( " FATAL: expected file, saw EOL" );
-					System.Environment.Exit( (int)EXIT_STATUS.FAILURE );
+					System.Environment.Exit( EXIT_FAILURE );
 				}
 			// Check long file option
 			} else if( args[ix].StartsWith( "--file" ) ) {
@@ -266,7 +310,7 @@ class Program {
 					FileQ.Enqueue( args[ix].Length > 6 ? args[ix].Substring( 7 ) : args[++ix] );
 				} catch( IndexOutOfRangeException ) {
 					Console.WriteLine( " FATAL: expected file, saw EOL" );
-					System.Environment.Exit( (int)EXIT_STATUS.FAILURE );
+					System.Environment.Exit( EXIT_FAILURE );
 				}
 			// Check short eval option
 			} else if( args[ix].StartsWith( "-e" ) ) {
@@ -274,7 +318,7 @@ class Program {
 					Eval( args[ix].Length > 2 ? args[ix].Substring( 2 ) : args[++ix] );
 				} catch( IndexOutOfRangeException ) {
 					Console.WriteLine( " FATAL: expected expression, saw EOL" );
-					System.Environment.Exit( (int)EXIT_STATUS.FAILURE );
+					System.Environment.Exit( EXIT_FAILURE );
 				}
 			// Check long eval option
 			} else if( args[ix].StartsWith( "--expression" ) ) {
@@ -282,7 +326,7 @@ class Program {
 					Eval( args[ix].Length > 12 ? args[ix].Substring( 13 ) : args[++ix] );
 				} catch( IndexOutOfRangeException ) {
 					Console.WriteLine( " FATAL: expected expression, saw EOL" );
-					System.Environment.Exit( (int)EXIT_STATUS.FAILURE );
+					System.Environment.Exit( EXIT_FAILURE );
 				}
 			// Default: read arg as file
 			} else {
@@ -300,7 +344,7 @@ class Program {
 				Read_FILE( FileQ.Dequeue() );
 		}
 
-		return (int)EXIT_STATUS.SUCCESS;
+		return EXIT_SUCCESS;
   }
 }
 
@@ -316,10 +360,23 @@ class Program {
  *       Coding these sections will take longer than the rest of this business
  *       logic.
  *   2021.10.06 0810->0830 (20min):
- *     Impimented:
+ *     Implimented:
  *        do_push
  *        do_pop
+ *        do_peek
  *        do_push_string
  *        do_push_number
  *        do_discard
+ *   2021.10.07 1100->1130, 1330->1340 (40min):
+ *     Replaced EXIT_STATUS enum with constants
+ *       (because C# is stupid and can't impicit cast anything)
+ *     Implimented:
+ *       do_pop_number
+ *       do_pop_string
+ *       do_add
+ *       do_subtract
+ *       do_multiply
+ *       do_divide
+ *       do_modulo
  */
+ 
