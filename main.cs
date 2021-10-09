@@ -12,8 +12,10 @@ public struct StackObj {
 
 class Program {
 	public static int VERSION_MAJOR = 2021;
-	public static int VERSION_MINOR = 279;
-	public static int VERSION_REVISION = 0364386;
+	public static int VERSION_MINOR = 282;
+	public static int VERSION_REVISION = 6169264;
+
+	private static bool DEBUG_Eval = false;
 
 	private static Dictionary<char, Stack<StackObj>> Memory = new Dictionary<char, Stack<StackObj>>();
 	private static List<StackObj> TheStack = new List<StackObj>();
@@ -355,7 +357,7 @@ class Program {
 
 	private static void do_swap() {
 		// If only C# used real pointers...
-		var tmp = TheStack[0];
+		var tmp = TheStack[1];
 		TheStack[1] = TheStack[0];
 		TheStack[0] = tmp;
 	}
@@ -467,6 +469,15 @@ class Program {
 
 	private static void Eval( string line ) {
 		for( int il = 0; il < line.Length; il++ ) {
+			// DEBUG Meta:
+			if( DEBUG_Eval ) {
+				Console.WriteLine( "     il: {0}", il );
+				Console.WriteLine( "    pos: {0}v", new String( ' ', il ) );
+				Console.WriteLine( "   line: {0}", line );
+				Console.WriteLine( "   buff: {0}", Eval_buffer );
+				Console.WriteLine();
+			}
+
 			// SECTION: String Continuation
 			if( Eval_buffer_hasString() ) {	
 				Eval_buffer += line[il];
@@ -478,7 +489,7 @@ class Program {
 			}
 
 			// SECTION: Numberic Continuation
-			else if( Eval_buffer.Length > 0 && Char.IsDigit( line[il] ) || line[il] == '.' && !Eval_buffer.Contains( '.' ) ) {
+			else if( Char.IsDigit( line[il] ) || line[il] == '.' && !Eval_buffer.Contains( '.' ) ) {
 				Eval_buffer += line[il];
 			} 
 
@@ -487,11 +498,11 @@ class Program {
 				// CASE: false-positive: subtract operator received, not negation operator
 				if( Eval_buffer.Length == 1 && Eval_buffer[0] == '-' ) {
 					do_subtract();
-					il--;
 				} else {
 					do_push_number( Decimal.Parse( Eval_buffer ) );
 				}
 
+				il--;
 				Eval_buffer = String.Empty;
 			}
 
@@ -502,30 +513,31 @@ class Program {
 				case '-': // Subtraction or Negation Op
 					Eval_buffer += line[il];
 					break;
-				case '+':   do_add();                       break;
-				case '*':   do_multiply();                  break;
-				case '/':	  do_divide();                    break;
-				case '%':	  do_modulo();                    break;
-				case '~':   do_modulo_divide();             break;
-				case '^':   do_power();                     break;
-				case '|':   do_modulo_power();              break;
-				case 'v':   do_sqrt();                      break;
-				case 'p':   do_print();                     break;
-				case 'P':   do_print_pop();                 break;
-				case 'n':   do_print_pop_nonl();            break;
-				case 'f':   do_print_stack();               break;
-				case 'c':   do_clear_stack();               break;
-				case 'd':   do_duplicate();                 break;
-				case 'r':   do_swap();                      break;
-				case 'R':   do_rotate_stack();              break;
-				case 's':   do_store( line[++il] );         break;
-				case 'l':   do_readback( line[++il] );      break;
-				case 'S':   do_store_stack( line[++il] );   break;
-				case 'L':   do_moveback( line[++il] );      break;
-				case 'k':   do_setPrecision();              break;
-				case 'K':   do_getPrecision();              break;
-				case 'x':   do_eval();                      break;
-				case 'z':   do_getStackSize();              break;
+				case '+':   do_add();                                  break;
+				case '*':   do_multiply();                             break;
+				case '/':	  do_divide();                               break;
+				case '%':	  do_modulo();                               break;
+				case '~':   do_modulo_divide();                        break;
+				case '^':   do_power();                                break;
+				case '|':   do_modulo_power();                         break;
+				case 'v':   do_sqrt();                                 break;
+				case 'p':   do_print();                                break;
+				case 'P':   do_print_pop();                            break;
+				case 'n':   do_print_pop_nonl();                       break;
+				case 'f':   do_print_stack();                          break;
+				case 'c':   do_clear_stack();                          break;
+				case 'd':   do_duplicate();                            break;
+				case 'r':   do_swap();                                 break;
+				case 'R':   do_rotate_stack();                         break;
+				case 's':   do_store( line[++il] );                    break;
+				case 'l':   do_readback( line[++il] );                 break;
+				case 'S':   do_store_stack( line[++il] );              break;
+				case 'L':   do_moveback( line[++il] );                 break;
+				case 'k':   do_setPrecision();                         break;
+				case 'K':   do_getPrecision();                         break;
+				case 'x':   do_eval();                                 break;
+				case 'z':   do_getStackSize();                         break;
+				case 'q':   System.Environment.Exit( EXIT_SUCCESS );   break;
 
 				// Unimplimented instructions
 				case 'i': // Set Input Radix
@@ -541,7 +553,7 @@ class Program {
 
 				// Comment
 				case '#':
-					return;
+					goto flush_buffer;
 				
 				// Whitespace
 				case ' ':
@@ -553,9 +565,15 @@ class Program {
 					break;
 				
 				default:
-					Console.WriteLine( $" ERROR: {line[il]} is not a recognized instruction." );
+					Console.WriteLine( $" ERROR: `{line[il]}' is not a recognized instruction." );
 					break;
 			}
+		}
+
+		flush_buffer:
+		if( Eval_buffer.Length > 0 && ! Eval_buffer_hasString() ){
+			do_push_number( Decimal.Parse( Eval_buffer ) );
+			Eval_buffer = String.Empty;
 		}
 	}
 
@@ -708,4 +726,6 @@ class Program {
  *       do_modulo
  *     Incomplete:
  *       do_modulo_power
+ *   2021.10.09: Debugged Eval and Swap:
+ *     Wasn't handling nubmers correctly...
  */
