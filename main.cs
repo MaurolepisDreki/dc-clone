@@ -18,6 +18,7 @@ class Program {
 	private static Dictionary<char, Stack<StackObj>> Memory = new Dictionary<char, Stack<StackObj>>();
 	private static List<StackObj> TheStack = new List<StackObj>();
 	private static Queue<string> FileQ = new Queue<string>();
+	private static List<long> Primes = new List<long>();
 	private static int Precision = 0;
 
 	// C uses a macro to help keep common application exit invocations clean
@@ -60,6 +61,52 @@ class Program {
 	// Interface for discering the type of object on the top of TheStack
 	private static bool TheStack_hasString( int indx = 0 ) {
 		return TheStack[indx].isString;
+	}
+
+	// A more complete modulus algorithm that works with any nubmer set
+	private static decimal NaturalModulo( decimal num, decimal mod ) {
+		return num - mod * Math.Floor( num / mod );
+	}
+
+	// Initialize Primes
+	private static void InitPrimes() {
+		Primes.Add( 2 );
+		Primes.Add( 3 );
+	}
+
+	// Generates and returns next prime number in sequence
+	private static long NextPrime() {
+		// Ensure Primes is initialized
+		if( Primes.Count == 0 )
+			InitPrimes();
+
+		//   vv Potential Prime
+		long pp = Primes[Primes.Count - 1];
+		try_next: 
+			pp += Primes[0];
+			foreach( long prime in Primes )
+				if( pp % prime == 0 )
+					goto try_next;
+		
+		// If you reach this point a new prime's been found
+		Primes.Add( pp );
+		return pp;
+	}
+
+	// Generate Primes until Primes[Primes.Length - 1] >= target
+	private static void EnsurePrimesIncludes( long target ) {
+		// Ensure Primes is initialized
+		if( Primes.Count == 0 )
+			InitPrimes();
+
+		while( Primes[Primes.Count - 1] < target )
+			NextPrime();
+	}
+
+	// Ensure Memory[Register] is Initialized
+	private static void EnsureMemoryInitd( char Register ) {
+		if( ! Memory.ContainsKey( Register ) )
+			Memory[Register] = new Stack<StackObj>();
 	}
 
 	// SECTION: Operations
@@ -126,23 +173,272 @@ class Program {
 	}
 
 	private static void do_add() {
+		// Employing Commutative property of addition
 		do_push_number( do_pop_number() + do_pop_number() );
 	}
 
 	private static void do_subtract() {
-		do_push_number( do_pop_number() - do_pop_number() );
+		decimal val = do_pop_number();
+		do_push_number( do_pop_number() - val);
 	}
 
 	private static void do_multiply() {
+		// Employing Commutative property of multiplication
 		do_push_number( do_pop_number() * do_pop_number() );
 	}
 
 	private static void do_divide() {
-		do_push_number( do_pop_number() * do_pop_number() );
+		decimal val = do_pop_number();
+		do_push_number( do_pop_number() / val );
 	}
 
 	private static void do_modulo() {
-		do_push_number( do_pop_number() % do_pop_number() );
+		decimal val = do_pop_number();
+		do_push_number( NaturalModulo( do_pop_number(), val ) );
+	}
+
+	// pops two values, and divides them; returns quotent and remainder respectivly
+	private static void do_modulo_divide() {
+		decimal[] val = new decimal[2];
+		for( int indx = 0; indx < val.Length; indx++ )
+			val[indx] = do_pop_number();
+
+		// Using variables because we calculate them in reverse
+		decimal quotent;
+		decimal remainder;
+
+		remainder = NaturalModulo( val[1], val[0] );
+		val[1] -= remainder;
+
+		quotent = val[1] / val[0];
+
+		do_push_number( quotent );
+		do_push_number( remainder );
+	}
+
+	// computes exponent
+	//   one of few things C# does acceptably
+	private static void do_power() {
+		decimal exp = do_pop_number();
+		do_push_number( (decimal)Math.Pow( (double)do_pop_number(), (double)exp ) );
+	}
+
+	// Modulo-Power solver using Integration
+	private static decimal do_modulo_power_subroutine( decimal num, long exp, decimal mod ) {
+		// SUBSECTION: Factor natural power
+		Dictionary<long, long> pow_fact = new Dictionary<long, long>();
+		long max_prime = (long)Math.Floor( Math.Sqrt( exp ) );
+
+		// Ensure we have enough primes for factoring
+		EnsurePrimesIncludes( max_prime );
+
+		// FACTOR!!!
+		int pindx;
+		while( exp > 1 ) {
+			for( pindx = 0; 
+				pindx < Primes.Count
+					&& Primes[pindx] <= max_prime 
+					&& exp % Primes[pindx] != 0; 
+				pindx++ ); //< TRANSLATION: find Prime where...
+			
+			if( Primes[pindx] <= max_prime ) {
+				if( pow_fact.ContainsKey( Primes[pindx] ) )
+					pow_fact[Primes[pindx]]++;
+				else
+					pow_fact[Primes[pindx]] = 1;
+
+
+				exp /= Primes[pindx];
+				max_prime = (long) Math.Floor( Math.Sqrt( exp ) );
+			} else {
+				// Reaching this block means that exp is prime itself
+				if( pow_fact.ContainsKey( exp ) )
+					pow_fact[exp]++;
+				else
+					pow_fact[exp] = 1;
+				break;
+			}
+		}
+		
+		// SUBSECTION: Exponentiate
+		Stack<decimal> subExp = new Stack<decimal>();
+		decimal modNum = NaturalModulo( num, mod );
+		foreach( var pair in pow_fact ) {
+			// I'm not impressed with C#'s Math Library's inability to maintain my
+			//    28 place "decimal" precision.  And since I don't have to worry 
+			//    about inversion or roots, I'll just do it by hand...
+			decimal subNum = modNum;
+			for( long itr = 0; itr < pair.Key; itr++ )
+				subNum = NaturalModulo( subNum * modNum, mod );
+
+			if( pair.Value > 1 )
+				subExp.Push( do_modulo_power_subroutine( subNum, pair.Value, mod ) );
+			else
+				subExp.Push( subNum );
+		}
+
+		decimal result = subExp.Pop();
+		while( subExp.Count > 0 ) 
+			result = NaturalModulo( result * subExp.Pop(), mod );
+
+		return result;
+	}
+
+	// performs modulo exponentiation
+	private static void do_modulo_power() {
+		decimal mod = do_pop_number();
+		decimal pow = do_pop_number();
+		decimal num = do_pop_number();
+
+		// Seperate natural and real parts of the exponent for factoring
+		int pow_sign = (int)(pow / Math.Abs( pow ));
+		decimal pow_frac = Math.Abs( pow ) - Math.Truncate( Math.Abs( pow ) );
+		long pow_int = (long)Math.Truncate( Math.Abs( pow ) );
+
+		// Calculate natural exponent
+		decimal natExp = do_modulo_power_subroutine( num, pow_int, mod );
+
+		// Calulate root 
+		decimal root = (decimal)Math.Pow( (double)num, (double) pow_frac );
+
+		// merge Calculation
+		num = NaturalModulo( natExp * root, mod );
+
+		// Do modular inverse
+		if( pow_sign < 0 ) {
+			// UNDONE
+		}
+
+		Console.WriteLine( " FATAL: Modulo-Powers operation is incomplete!" );
+		System.Environment.Exit( EXIT_FAILURE );
+	}
+
+	private static void do_sqrt() {
+		do_push_number( (decimal)Math.Sqrt( (double)do_pop_number() ) );
+	}
+
+	private static void do_print() {
+		if( TheStack_hasString() )
+			Console.WriteLine( do_peek().str );
+		else
+			Console.WriteLine( Math.Round( do_peek().num, Precision ) );
+	}
+
+	private static void do_print_pop() {
+		do_print();
+		do_discard();
+	}
+
+	private static void do_print_pop_nonl() {
+		if( TheStack_hasString() )
+			Console.Write( do_pop_string() );
+		else
+			Console.Write( Math.Round( do_pop_number(), Precision ) );
+	}
+
+	private static void do_print_stack() {
+		for( int indx = 0; indx < TheStack.Count; indx++ ) {
+			if( TheStack_hasString( indx ) )
+				Console.WriteLine( TheStack[indx].str );
+			else
+				Console.WriteLine( Math.Round( TheStack[indx].num, Precision ) );
+		}
+	}
+
+	private static void do_clear_stack() {
+		TheStack.Clear();
+	}
+
+	private static void do_duplicate() {
+		do_push( do_peek() );
+	}
+
+	private static void do_swap() {
+		// If only C# used real pointers...
+		var tmp = TheStack[0];
+		TheStack[1] = TheStack[0];
+		TheStack[0] = tmp;
+	}
+
+	private static void do_rotate_stack() {
+		if( Math.Truncate( do_peek().num ) != do_peek().num ) {
+			Console.WriteLine( " WARNING: received non-integer number of units to rotate ({0}); will truncate to integer.", do_peek().num );
+		}
+
+		int rot = (int)Math.Truncate( do_pop_number() );
+		rot %= TheStack.Count;
+		if( rot < 0 )
+			rot += TheStack.Count;
+		
+		if( rot == 0 )
+			return; //< do nothing
+
+		TheStack.AddRange( TheStack.GetRange( 0, rot ) );
+		TheStack.RemoveRange( 0, rot );
+	}
+
+	// Move top of TheStack to Memory[Register] {overwrite}
+	private static void do_store( char Register ) {
+		EnsureMemoryInitd( Register );
+
+		// This is an overwrite; pop previous value if exists
+		if( Memory[Register].Count > 0 )
+			Memory[Register].Pop();
+
+		Memory[Register].Push( do_pop() );
+	}
+
+	// Copy value at Memory[Register] into TheStack
+	private static void do_readback( char Register ) {
+		EnsureMemoryInitd( Register );
+
+		if( Memory[Register].Count > 0 ) {
+			do_push( Memory[Register].Peek() );
+		} else {
+			// Memory Stack is Empty
+			Console.WriteLine( " WARNING: attempted read of empty register ({0})", Register );
+			do_push_number( 0 );
+		}
+	}
+
+	// Move top of TheStack to Memory[Register] {push}
+	private static void do_store_stack( char Register ) {
+		EnsureMemoryInitd( Register );
+
+		Memory[Register].Push( do_pop() );
+	}
+
+	// Move top of Memory[Register] to TheStack
+	private static void do_moveback( char Register ) {
+		EnsureMemoryInitd( Register );
+
+		if( Memory[Register].Count > 0 ) {
+			do_push( Memory[Register].Pop() );
+		} else {
+			// Memory Stack is Empty
+			Console.WriteLine( " WARNING: attempted read of empty register ({0})", Register );
+		}
+	}
+
+	private static void do_setPrecision() {
+		if( Math.Truncate( do_peek().num ) != do_peek().num )
+			Console.WriteLine( " WARNING: attempted pass of real as precission ({0}); converted to natural");
+		
+		int integer = (int)Math.Truncate( do_pop_number() );
+		Precision = integer < 0 ? 0 : integer;
+	}
+
+	private static void do_getPrecision() {
+		do_push_number( Precision );
+	}
+
+	private static void do_getStackSize() {
+		do_push_number( TheStack.Count );
+	}
+
+	private static void do_eval() {
+		string expr = do_pop_string();
+		Eval( expr.Substring( 1, expr.Length - 2 ) );
 	}
 
 	// SECTION: Eval
@@ -371,6 +667,7 @@ class Program {
  *     Replaced EXIT_STATUS enum with constants
  *       (because C# is stupid and can't impicit cast anything)
  *     Implimented:
+ *       TheStack_hasString
  *       do_pop_number
  *       do_pop_string
  *       do_add
@@ -378,5 +675,37 @@ class Program {
  *       do_multiply
  *       do_divide
  *       do_modulo
+ *   2021.10.08 0915->1815 (9hr):
+ *     Implimented:
+ *       NaturalModulo
+ *       InitPrimes
+ *       NextPrime
+ *       EnsurePrimesIncludes
+ *       EnsureMemoryInitd
+ *       do_modulo_divide
+ *       do_power
+ *       do_modulo_power_subroutine
+ *       do_sqrt
+ *       do_print
+ *       do_print_pop
+ *       do_print_pop_nonl
+ *       do_print_stack
+ *       do_clear_stack
+ *       do_duplicate
+ *       do_swap
+ *       do_rotate_stack
+ *       do_store
+ *       do_readback
+ *       do_store_stack
+ *       do_moveback
+ *       do_setPrecision
+ *       do_getPrecision
+ *       do_getStackSize
+ *       do_eval
+ *     Corrected:
+ *       do_subtract
+ *       do_divide
+ *       do_modulo
+ *     Incomplete:
+ *       do_modulo_power
  */
- 
